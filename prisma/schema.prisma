@@ -11,22 +11,25 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  firstName String   @map("first_name")
-  lastName  String   @map("last_name")
-  phoneNo   Int @map("phone_no")
-  address   String @map("address")
-  dateOfBirth DateTime  @map("DOB")
-  gender String @map("gender")
-  state String @map("state")
-  country String @map("country")
+  id                Int               @id @default(autoincrement())
+  firstName         String            @map("first_name")
+  lastName          String            @map("last_name")
+  phoneNo           Int               @map("phone_no")
+  address           String            @map("address")
+  dateOfBirth       DateTime          @map("DOB")
+  gender            String            @map("gender")
+  state             String            @map("state")
+  country           String            @map("country")
   currenrStudyLevel currenrStudylevel @map("current_studylevel")
-  email     String   @unique
-  username  String   @unique
-  password  String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  email             String            @unique
+  username          String            @unique
+  password          String
+  isActive          Boolean           @default(true)
+  isDeleted         Boolean           @default(false) @map("isdeleted")
+  deletedAt         DateTime?         @map("deleted_at")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime?         @map("updated_at")
+  userRoleMappings  UserRoleMapping[] 
 
   @@map("users")
 }
@@ -42,25 +45,26 @@ enum currenrStudylevel {
 }
 
 model roles {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  description String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userRoleMappings userRoleMapping[] 
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  description      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime?         @map("updated_at")
+  userRoleMappings UserRoleMapping[]
+
   @@map("roles")
 }
 
-model userRoleMapping {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  roleId    Int
+model UserRoleMapping {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  roleId     Int
   assignedAt DateTime @default(now())
-  assignedBy String
-  role roles @relation(fields: [roleId], references: [id]) 
-
-  @@map("user_role_mapping")
+  assignedBy Int?
+  user       User     @relation(fields: [userId], references: [id])  // Relation to User based on userId
+  role       roles    @relation(fields: [roleId], references: [id])
 
   @@index([userId], name: "idx_user_id")
   @@index([roleId], name: "idx_role_id")
+  @@map("user_role_mapping")
 }

@@ -1,32 +1,61 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import passport from 'passport';
 
-export interface JwtPayloadExtended {
-  userId: string;
-  role: string;
-}
 
-export function authenticate(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayloadExtended;
-    (req as any).user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' });
-  }
-}
+export const authAdmin = (req: Request, res: Response, next: NextFunction): void => {
+    passport.authenticate("jwt", { session: false }, (err: any, user: any) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: "Server error during authentication", error: err });
+        }
 
-export function authorize(roles: string[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user as JwtPayloadExtended | undefined;
-    if (!user || !roles.includes(user.role)) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
-    next();
-  };
-}
+        if (!user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        if (user.role === "ADMIN" || user.role === "SUPERADMIN") {
+            req.user = user;
+            return next();
+        }
+
+        return res.status(403).json({ success: false, message: "Admin access required" });
+    })(req, res, next);
+};
+
+export const authUser = (req: Request, res: Response, next: NextFunction): void => {
+    passport.authenticate("jwt", { session: false }, (err: any, user: any) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: "Server error during authentication", error: err });
+        }
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        if (user.role === "USER") {
+            req.user = user;
+            return next();
+        }
+
+        return res.status(403).json({ success: false, message: "User access required" });
+    })(req, res, next);
+};
+
+export const authAdminOrUser = (req: Request, res: Response, next: NextFunction): void => {
+    passport.authenticate("jwt", { session: false }, (err: any, user: any) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: "Server error during authentication", error: err });
+        }
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: "Unauthorized. Login to Continue" });
+        }
+
+        if (user.role === "ADMIN" || user.role === "USER") {
+            req.user = user;
+            return next();
+        }
+
+        return res.status(403).json({ success: false, message: "Unauthorized" });
+    })(req, res, next);
+};
+
