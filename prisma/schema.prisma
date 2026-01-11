@@ -7,7 +7,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -60,6 +61,7 @@ model roles {
   userRoleMappings UserRoleMapping[]
 
   @@map("roles")
+ 
 }
 
 model UserRoleMapping {
@@ -73,6 +75,7 @@ model UserRoleMapping {
 
   @@index([userId], name: "idx_user_id")
   @@index([roleId], name: "idx_role_id")
+  @@unique([userId, roleId])
   @@map("user_role_mapping")
 }
 

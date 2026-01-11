@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, ManagerLevel } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -6,84 +6,119 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seeding...');
 
-  // Create admin user
+  // Create Roles
+  console.log('Creating roles...');
+  
+  const adminRole = await prisma.roles.upsert({
+    where: { name: 'ADMIN' },
+    update: {},
+    create: {
+      name: 'admin',
+      description: 'Administrator with full access',
+    },
+  });
+
+  const userRole = await prisma.roles.upsert({
+    where: { name: 'User' },
+    update: {},
+    create: {
+      name: 'User',
+      description: 'Regular user/learner',
+    },
+  });
+
+  const superAdminRole = await prisma.roles.upsert({
+    where: { name: 'SUPERADMIN' },
+    update: {},
+    create: {
+      name: 'superAdmin',
+      description: 'Super administrator with highest privileges',
+    },
+  });
+
+  console.log('✅ Roles created');
+
+  // Create Admin User
+  console.log('Creating admin user...');
   const hashedPassword = await bcrypt.hash('admin123', 10);
   
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@hrms.com' },
+    where: { email: 'admin@skillup.com' },
     update: {},
     create: {
-      email: 'admin@hrms.com',
+      email: 'admin@skillup.com',
       username: 'admin',
       password: hashedPassword,
       firstName: 'Admin',
       lastName: 'User',
-      role: UserRole.ADMIN,
+      isActive: true,
+      isDeleted: false,
     },
   });
 
-  // Create manager user
-  const managerPassword = await bcrypt.hash('manager123', 10);
+  // Assign ADMIN role to admin user
+  await prisma.userRoleMapping.upsert({
+    where: {
+      userId_roleId: {
+        userId: admin.id,
+        roleId: adminRole.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: admin.id,
+      roleId: adminRole.id,
+    },
+  });
+
+  console.log('✅ Admin user created');
+
+  // Create Demo Learner User
+  console.log('Creating demo learner...');
+  const learnerPassword = await bcrypt.hash('learner123', 10);
   
-  const manager = await prisma.user.upsert({
-    where: { email: 'manager@hrms.com' },
+  const learner = await prisma.user.upsert({
+    where: { email: 'learner@skillup.com' },
     update: {},
     create: {
-      email: 'manager@hrms.com',
-      username: 'manager',
-      password: managerPassword,
-      firstName: 'John',
-      lastName: 'Manager',
-      role: UserRole.MANAGER,
+      email: 'learner@skillup.com',
+      username: 'learner',
+      password: learnerPassword,
+      firstName: 'Demo',
+      lastName: 'Learner',
+      isActive: true,
+      isDeleted: false,
     },
   });
 
-  // Create manager record
-  const managerRecord = await prisma.manager.upsert({
-    where: { userId: manager.id },
+  // Assign User role to learner
+  await prisma.userRoleMapping.upsert({
+    where: {
+      userId_roleId: {
+        userId: learner.id,
+        roleId: userRole.id,
+      },
+    },
     update: {},
     create: {
-      userId: manager.id,
-      department: 'Human Resources',
-      level: ManagerLevel.DEPARTMENT_HEAD,
+      userId: learner.id,
+      roleId: userRole.id,
     },
   });
 
-  // Create employee user
-  const employeePassword = await bcrypt.hash('employee123', 10);
-  
-  const employee = await prisma.user.upsert({
-    where: { email: 'employee@hrms.com' },
-    update: {},
-    create: {
-      email: 'employee@hrms.com',
-      username: 'employee',
-      password: employeePassword,
-      firstName: 'Jane',
-      lastName: 'Employee',
-      role: UserRole.EMPLOYEE,
-    },
-  });
+  console.log('✅ Demo learner created');
 
-  // Create employee record
-  const employeeRecord = await prisma.employee.upsert({
-    where: { userId: employee.id },
-    update: {},
-    create: {
-      employeeId: 'EMP001',
-      department: 'Human Resources',
-      position: 'HR Specialist',
-      salary: 50000,
-      hireDate: new Date('2023-01-15'),
-      userId: employee.id,
-      managerId: managerRecord.id,
-    },
-  });
-
-  console.log('✅ Database seeded successfully!');
-  console.log('👤 Admin user created:', admin.email);
-  console.log('👤 Manager user created:', manager.email);
-  console.log('👤 Employee user created:', employee.email);
+  console.log('\n🎉 Database seeded successfully!\n');
+  console.log('📋 Login Credentials:');
+  console.log('─────────────────────────────────────');
+  console.log('👤 Admin:');
+  console.log('   Email: admin@skillup.com');
+  console.log('   Password: admin123');
+  console.log('');
+  console.log('👤 Learner:');
+  console.log('   Email: learner@skillup.com');
+  console.log('   Password: learner123');
+  console.log('─────────────────────────────────────\n');
 }
 
 main()
