@@ -6,8 +6,8 @@ import { authAdminOrUser } from '@/middlewares/auth';
 
 const router = Router();
 
-router.post('/register', registerValidator, authAdminOrUser, AuthController.register);
-router.post('/login', loginValidator, authAdminOrUser, AuthController.login);
+router.post('/register', registerValidator, AuthController.register);
+router.post('/login', loginValidator, AuthController.login);
 
 export default router;
 
