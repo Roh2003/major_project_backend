@@ -8,10 +8,10 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
-import { errorHandler, notFoundHandler } from '@/middlewares/errorHandler';
-import { logger } from '@/utils/logger';
-import routes from '@/routes';
-import { connectDatabase } from '@/config/database';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
+import { logger } from './utils/logger';
+import routes from './routes';
+import { connectDatabase } from './config/database';
 
 // Load environment variables
 dotenv.config();
