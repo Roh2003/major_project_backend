@@ -164,6 +164,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        userRoleMappings: {
+          include: {
+            role: true
+          }
+        }
+      }
     });
 
     if (!user) {
@@ -212,7 +219,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Generate access token and refresh token (assume you have generateToken util)
     const accessToken = generateToken(
-      {userId: user.id, email: user.email, username: user.username},
+      {userId: user.id, email: user.email, username: user.username, role: user.userRoleMappings[0].role.name},
       '1h'
     );
 
@@ -234,6 +241,146 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       STATUS_CODES.OK
     );
   } catch (error) {
+    sendResponse(
+      res,
+      false,
+      null,
+      'Login failed',
+      STATUS_CODES.SERVER_ERROR
+    );
+  }
+}
+
+// Admin Login - specifically for admin dashboard
+export const adminLogin = async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+
+  console.log("[Admin Login] API called");
+  console.log("[Admin Login] Email:", email);
+
+  if (!email || !password) {
+    sendResponse(
+      res,
+      false,
+      null,
+      'Email and password are required',
+      STATUS_CODES.BAD_REQUEST
+    );
+    return;
+  }
+
+  try {
+    // Find user with role mappings
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        userRoleMappings: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      console.log("[Admin Login] User not found");
+      sendResponse(
+        res,
+        false,
+        null,
+        'Invalid email or password',
+        STATUS_CODES.BAD_REQUEST
+      );
+      return;
+    }
+
+    // Check if user is deleted or inactive
+    if (user.isDeleted) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'Your account has been deleted',
+        STATUS_CODES.UNAUTHORIZED
+      );
+      return;
+    }
+
+    if (!user.isActive) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'Your account is not active',
+        STATUS_CODES.UNAUTHORIZED
+      );
+      return;
+    }
+
+    // Check if user has admin role
+    const roles = user.userRoleMappings.map(mapping => mapping.role.name);
+    const isAdmin = roles.includes('ADMIN') || roles.includes('admin') || roles.includes('SUPERADMIN') || roles.includes('superAdmin');
+
+    console.log("[Admin Login] User roles:", roles);
+    console.log("[Admin Login] Is admin:", isAdmin);
+
+    if (!isAdmin) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'Access denied. Admin privileges required.',
+        STATUS_CODES.FORBIDDEN
+      );
+      return;
+    }
+
+    // Verify password
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      console.log("[Admin Login] Invalid password");
+      sendResponse(
+        res,
+        false,
+        null,
+        'Invalid email or password',
+        STATUS_CODES.UNAUTHORIZED
+      );
+      return;
+    }
+
+    // Generate access token with role information
+    const accessToken = generateToken(
+      {
+        userId: user.id,
+        email: user.email,
+        username: user.username,
+        role: roles[0] // Primary role
+      },
+      '8h' // Longer session for admins
+    );
+
+    console.log("[Admin Login] Login successful");
+
+    sendResponse(
+      res,
+      true,
+      {
+        user: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          username: user.username,
+          role: roles[0]
+        },
+        accessToken
+      },
+      'Admin login successful',
+      STATUS_CODES.OK
+    );
+  } catch (error) {
+    console.error("[Admin Login] Error:", error);
     sendResponse(
       res,
       false,

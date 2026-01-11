@@ -132,7 +132,7 @@ export const counselorLogin = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     // Find counselor by email
-    const counselor = await prisma.counselor.findUnique({ where: { email } });
+    const counselor = await prisma.counselor.findUnique({ where: { email }  });
 
     if (!counselor) {
       sendResponse(res, false, null, "Invalid credentials", 401);
@@ -149,7 +149,8 @@ export const counselorLogin = async (req: Request, res: Response) => {
     const token = generateToken({
       userId: Number(counselor.id),
       email: counselor.email,
-      username: counselor.name 
+      username: counselor.name ,
+      role: "User"
     });
 
     sendResponse(res, true, {
