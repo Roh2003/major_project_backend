@@ -1,7 +1,7 @@
 {
-  "name": "yrf-hrms-backend",
+  "name": "skillup-backend",
   "version": "1.0.0",
-  "description": "HR Management System Backend with MVC Architecture",
+  "description": "SkillUp Backend with MVC Architecture",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -14,7 +14,7 @@
     "db:seed": "ts-node prisma/seed.ts"
   },
   "keywords": [
-    "hrms",
+    "skillup",
     "backend",
     "nodejs",
     "typescript",
