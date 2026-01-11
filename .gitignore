@@ -1,0 +1,62 @@
+# ------------------------
+# Dependencies
+# ------------------------
+node_modules/
+
+# ------------------------
+# Build output
+# ------------------------
+dist/
+build/
+
+# ------------------------
+# Environment variables
+# ------------------------
+.env
+.env.*
+!.env.example
+
+# ------------------------
+# Logs
+# ------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------
+# OS / Editor files
+# ------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------
+# IDE settings
+# ------------------------
+.vscode/
+.idea/
+*.swp
+
+# ------------------------
+# Prisma
+# ------------------------
+prisma/migrations/
+prisma/seed.ts
+
+# ------------------------
+# Tests & coverage
+# ------------------------
+coverage/
+*.test.ts
+
+# ------------------------
+# Temporary files
+# ------------------------
+tmp/
+.cache/
+
+# ------------------------
+# TypeScript incremental build
+# ------------------------
+*.tsbuildinfo
