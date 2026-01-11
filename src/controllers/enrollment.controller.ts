@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import prisma from '@/prisma';
-import { sendResponse } from '@/utils/responseUtils';
+import prisma from '../prisma';
+import { sendResponse } from '../utils/responseUtils';
 
 // Enroll user in a course
 export const enrollCourse = async (req: Request, res: Response): Promise<void> => {

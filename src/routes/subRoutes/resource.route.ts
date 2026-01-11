@@ -7,7 +7,7 @@ import {
   deleteResource,
   incrementDownload,
   getResourceStats
-} from '@/controllers/resource.controller';
+} from "../../controllers/resource.controller";
 
 const router = Router();
 

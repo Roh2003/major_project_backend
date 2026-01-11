@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getPrismaClient } from '@/config/database';
-import prisma from '@/prisma';
-import { sendResponse } from '@/utils/responseUtils';
-import STATUS_CODES from '@/utils/statusCodes';
+import { getPrismaClient } from '../config/database';
+import prisma from '../prisma';
+import { sendResponse } from '../utils/responseUtils';
+import STATUS_CODES from '../utils/statusCodes';
 import { hash } from 'crypto';
-import { hashPassword } from '@/utils/password';
-import { comparePassword } from '@/utils/authUtils';
-import { generateToken } from '@/utils/generateToken';
+import { hashPassword } from '../utils/password';
+import { comparePassword } from '../utils/authUtils';
+import { generateToken } from '../utils/generateToken';
 import { number } from 'joi';
 import { RtcTokenBuilder, RtcRole } from "agora-access-token"
 

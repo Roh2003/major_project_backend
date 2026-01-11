@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { validateRequest } from '@/middlewares/validateRequest';
-import { courseCreateValidator } from '@/validators/course.validator';
+import { validateRequest } from '../../middlewares/validateRequest';
+import { courseCreateValidator } from '../../validators/course.validator';
 import { 
     getAllCoursesAdmin, 
     createCourse, 
@@ -13,15 +13,15 @@ import {
     updateCourse,
     addLesson,
     updateLesson
-  } from '@/controllers/course.controller';
+  } from '../../controllers/course.controller';
 import { 
   enrollCourse, 
   getEnrolledCourses, 
   checkEnrollment, 
   updateProgress, 
   unenrollCourse 
-} from '@/controllers/enrollment.controller';
-import { authAdminOrUser, authUser } from '@/middlewares/auth';
+} from '../../controllers/enrollment.controller';
+import { authAdminOrUser, authUser } from '../../middlewares/auth';
 
 const router = Router();
 

@@ -1,5 +1,5 @@
-import { acceptConsultationRequest, counselorLogin, createConsultationRequest, createCounselor, getActiveCounselors, getAllCounselor, getConsultationRequests, rejectConsultationRequest } from "@/controllers/counselor.controller";
-import { authenticate, authUser } from "@/middlewares/auth";
+import { acceptConsultationRequest, counselorLogin, createConsultationRequest, createCounselor, getActiveCounselors, getAllCounselor, getConsultationRequests, rejectConsultationRequest } from "../../controllers/counselor.controller";
+import { authenticate, authUser } from "../../middlewares/auth";
 import { Router } from "express";
 
 const router = Router() 

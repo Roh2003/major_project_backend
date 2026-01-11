@@ -12,8 +12,8 @@ import {
   startContest,
   submitContest,
   getContestLeaderboard
-} from "@/controllers/contest.controller";
-import { authAdmin, authUser } from "@/middlewares/auth";
+} from "../../controllers/contest.controller";
+import { authAdmin, authUser } from "../../middlewares/auth";
 
 const router = Router()
 

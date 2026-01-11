@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import prisma from '@/prisma';
-import { sendResponse } from '@/utils/responseUtils';
+import prisma from '../prisma';
+import { sendResponse } from '../utils/responseUtils';
 
 /**
  * Get all resources with optional filtering

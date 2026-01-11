@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import authRoutes from '@/routes/subRoutes/auth.routes';
-import courseRoutes from '@/routes/subRoutes/course.routes'
-import contestRoutes from '@/routes/subRoutes/contest.routes'
-import counselorRouter from '@/routes/subRoutes/counselor.routes'
-import MeetingRoutes from '@/routes/subRoutes/meeting.routes'
-import ResourceRoutes from '@/routes/subRoutes/resource.route'
+import authRoutes from './subRoutes/auth.routes';
+import courseRoutes from './subRoutes/course.routes'
+import contestRoutes from './subRoutes/contest.routes'
+import counselorRouter from './subRoutes/counselor.routes'
+import MeetingRoutes from './subRoutes/meeting.routes'
+import ResourceRoutes from './subRoutes/resource.route'
 const router = Router();
 
 router.use('/user/auth', authRoutes);
