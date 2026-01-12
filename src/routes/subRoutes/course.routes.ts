@@ -37,8 +37,8 @@ router.delete('/lessons/:lessonId', deleteLesson);
 
 // ---- User Routes ----
 router.get('/courses', getPublishedCourses);
-router.get('/courses/:courseId', getCourseDetail);
-router.get('/lessons/:lessonId', getLessonVideo);
+router.get('/courses/:courseId', authUser, getCourseDetail);
+router.get('/lessons/:lessonId', authUser, getLessonVideo);
 
 // ---- Enrollment Routes ----
 router.post('/:courseId/enroll', authUser, enrollCourse);

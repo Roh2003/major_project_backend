@@ -104,7 +104,7 @@ export const authAdmin = async (req: Request, res: Response, next: NextFunction)
 
         const roleName = user.userRoleMappings[0]?.role.name;
         
-        if (roleName === "ADMIN" || roleName === "SUPERADMIN") {
+        if (roleName === "admin" || roleName === "SUPERADMIN") {
             req.user = {
                 id: user.id,
                 email: user.email,
@@ -226,7 +226,7 @@ export const authAdminOrUser = async (req: Request, res: Response, next: NextFun
 
         const roleName = user.userRoleMappings[0]?.role.name;
         
-        if (roleName === "ADMIN" || roleName === "User") {
+        if (roleName === "admin" || roleName === "User") {
             req.user = {
                 id: user.id,
                 email: user.email,
