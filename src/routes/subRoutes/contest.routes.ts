@@ -20,16 +20,16 @@ const router = Router()
 // ========================================
 // ADMIN ROUTES - Contest Management
 // ========================================
-router.post("/", createContest)                      // Create contest
-router.get("/admin", getAllContestsAdmin)            // Get all contests (admin)
-router.get("/admin/:contestId", getContestByIdAdmin) // Get contest by ID (admin)
-router.put("/:contestId", updateContest)             // Update contest
-router.put("/:contestId/publish", publishContest)    // Publish/Unpublish contest
+router.post("/", authAdmin, createContest)                      // Create contest
+router.get("/", authAdmin, getAllContestsAdmin)            // Get all contests (admin)
+router.get("/:contestId", authAdmin, getContestByIdAdmin) // Get contest by ID (admin)
+router.put("/:contestId", authAdmin, updateContest)             // Update contest
+router.put("/:contestId/publish", authAdmin, publishContest)    // Publish/Unpublish contest
 
 // ========================================
 // QUESTION MANAGEMENT (Admin only)
 // ========================================
-router.post("/:contestId/questions", addContestQuestion)  // Add question to contest
+router.post("/:contestId/questions", authAdmin, addContestQuestion)  // Add question to contest
 
 // ========================================
 // USER/MOBILE ROUTES - For Learners

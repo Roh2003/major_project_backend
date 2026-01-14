@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -313,11 +313,19 @@ model Meeting {
   meetingProvider        MeetingProvider
   meetingRoomId          String
 
-  startTime              DateTime?
+  // Timing
+  scheduledTime          DateTime? // When meeting should start (for SCHEDULED type)
+  startTime              DateTime? // When meeting actually started (both joined)
   endTime                DateTime?
   duration               Int? // seconds
 
-  status                 MeetingStatus @default(ONGOING)
+  // Waiting Room State
+  counselorJoined        Boolean @default(false)
+  userJoined             Boolean @default(false)
+  counselorJoinedAt      DateTime?
+  userJoinedAt           DateTime?
+
+  status                 MeetingStatus @default(PENDING) // Changed from ONGOING
 
   // Relations
   consultationRequest ConsultationRequest @relation(fields: [consultationRequestId], references: [id])
@@ -326,6 +334,11 @@ model Meeting {
   user      User      @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
+  
+  @@index([status])
+  @@index([scheduledTime])
+  @@index([counselorId])
+  @@index([userId])
 }
 
 
@@ -373,9 +386,12 @@ enum ConsultationStatus {
 }
 
 enum MeetingStatus {
-  ONGOING
-  COMPLETED
-  CANCELLED
+  PENDING      // Created, waiting for participants to join
+  SCHEDULED    // Scheduled for future time
+  ONGOING      // Active call in progress
+  COMPLETED    // Ended normally
+  CANCELLED    // Cancelled by either party
+  NO_SHOW      // Participant didn't join within time window
 }
 
 enum MeetingProvider {

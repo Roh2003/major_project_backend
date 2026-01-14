@@ -129,37 +129,45 @@ export const createCounselor = async (req: Request, res: Response): Promise<void
 
 export const counselorLogin = async (req: Request, res: Response) => {
   try {
+
+    console.log("he it is calling new functon")
     const { email, password } = req.body;
 
     // Find counselor by email
     const counselor = await prisma.counselor.findUnique({ where: { email }  });
 
     if (!counselor) {
-      sendResponse(res, false, null, "Invalid credentials", 401);
+      sendResponse(res, false, null, "counselor not found", 401);
       return;
     }
 
     const isValid = await comparePassword(password, counselor.password);
 
     if (!isValid) {
-      sendResponse(res, false, null, "Invalid credentials", 401);
+      sendResponse(res, false, null, "Invalid credentials password", 401);
       return;
     }
 
+    // Generate token - counselor.id is a STRING (UUID), not a number
     const token = generateToken({
-      userId: Number(counselor.id),
+      userId: counselor.id, // String UUID
       email: counselor.email,
-      username: counselor.name ,
-      role: "User"
+      username: counselor.name,
+      role: "Counselor" // Set proper role for authorization
     });
+
+    console.log("token", token)
 
     sendResponse(res, true, {
       token,
       counselor: {
         id: counselor.id,
         name: counselor.name,
+        email: counselor.email,
         specialization: counselor.specialization,
-        isActive: counselor.isActive
+        isActive: counselor.isActive,
+        experience: counselor.experience,
+        employmentType: counselor.employmentType,
       }
     }, "Login successful", STATUS_CODES.OK);
 
@@ -311,15 +319,18 @@ export const acceptConsultationRequest = async (req: Request, res: Response) => 
       },
     })
 
-    // 2️⃣ Create meeting
+    // 2️⃣ Create meeting with proper status
+    const meetingStatus = request.requestType === "INSTANT" ? "PENDING" : "SCHEDULED";
+    
     const meeting = await prisma.meeting.create({
       data: {
         consultationRequestId: request.id,
         counselorId: String(counselorId),
         userId: request.userId,
         meetingProvider: "AGORA",
-        meetingRoomId: `skillup-${request.id}`, // unique room
-        status: "ONGOING",
+        meetingRoomId: `skillup-${request.id}-${Date.now()}`, // unique room
+        status: meetingStatus,
+        scheduledTime: request.scheduledAt, // Set scheduled time from request
       },
     })
 
@@ -329,8 +340,10 @@ export const acceptConsultationRequest = async (req: Request, res: Response) => 
       {
         meetingId: meeting.id,
         meetingRoomId: meeting.meetingRoomId,
+        status: meeting.status,
+        scheduledTime: meeting.scheduledTime,
       },
-      "Request accepted",
+      "Request accepted and meeting created",
       STATUS_CODES.OK
     )
   } catch (error) {

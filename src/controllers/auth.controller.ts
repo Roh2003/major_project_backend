@@ -161,6 +161,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  console.log("api is hitting in backend 2")
+
+
   try {
     const user = await prisma.user.findUnique({
       where: { email },
@@ -173,6 +176,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       }
     });
 
+    console.log("api is hitting in backend 3")
+
+
     if (!user) {
       sendResponse(
         res,
@@ -183,6 +189,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       );
       return;
     }
+
+    console.log("api is hitting in backend 4")
+
     if (user.isDeleted) {
       sendResponse(
         res,
@@ -193,6 +202,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       );
       return;
     }
+
+    console.log("api is hitting in backend 5")
+    
     if (!user.isActive) {
       sendResponse(
         res,
@@ -203,6 +215,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       );
       return;
     }
+
+    console.log("api is hitting in backend 6")
 
     // Assume you have a comparePassword util
     const isPasswordValid = await comparePassword(password, user.password);
@@ -217,11 +231,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    console.log("api is hitting in backend 7")
+    console.log("user", user.userRoleMappings[0].role.name)
+
     // Generate access token and refresh token (assume you have generateToken util)
     const accessToken = generateToken(
       {userId: user.id, email: user.email, username: user.username, role: user.userRoleMappings[0].role.name},
       '1h'
     );
+
+    console.log("accessToken", accessToken)
 
     sendResponse(
       res,

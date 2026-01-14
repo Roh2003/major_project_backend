@@ -21,22 +21,22 @@ import {
   updateProgress, 
   unenrollCourse 
 } from '../../controllers/enrollment.controller';
-import { authAdminOrUser, authUser } from '../../middlewares/auth';
+import { authAdmin, authAdminOrUser, authUser } from '../../middlewares/auth';
 
 const router = Router();
 
 // ---- Admin Routes ----
-router.get('/', getAllCoursesAdmin);
-router.post('/', courseCreateValidator, createCourse);
-router.patch('/:courseId',updateCourse ); // Placeholder for updateCourse
-router.put('/:courseId/publish', togglePublishCourse);
-router.get('/:courseId/lessons', getAllLessonById); 
-router.post('/:courseId/lessons', addLesson);
-router.put('/lessons/:lessonId', updateLesson); // Placeholder for updateLesson
-router.delete('/lessons/:lessonId', deleteLesson);
+router.get('/', authAdmin, getAllCoursesAdmin);
+router.post('/', authAdmin, createCourse);
+router.patch('/:courseId',authAdmin,updateCourse ); // Placeholder for updateCourse
+router.put('/:courseId/publish', authAdmin, togglePublishCourse);
+router.get('/:courseId/lessons', authAdmin, getAllLessonById); 
+router.post('/:courseId/lessons', authAdmin, addLesson);
+router.put('/lessons/:lessonId', authAdmin, updateLesson); // Placeholder for updateLesson
+router.delete('/lessons/:lessonId', authAdmin, deleteLesson);
 
 // ---- User Routes ----
-router.get('/courses', getPublishedCourses);
+router.get('/courses', authUser, getPublishedCourses);
 router.get('/courses/:courseId', authUser, getCourseDetail);
 router.get('/lessons/:lessonId', authUser, getLessonVideo);
 

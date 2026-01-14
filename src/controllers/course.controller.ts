@@ -173,6 +173,8 @@ export const getPublishedCourses = async (req: Request, res: Response): Promise<
 export const getCourseDetail = async (req: Request, res: Response): Promise<void> => {
     const { courseId } = req.params;
     const userId = req.user?.id;
+
+    console.log("res user", req.user)
   
     try {
       const course = await prisma.courses.findFirst({
@@ -201,6 +203,8 @@ export const getCourseDetail = async (req: Request, res: Response): Promise<void
         return;
       }
 
+      console.log("userID", userId)
+      console.log("courseId", courseId)
       // Check if user is enrolled
       let isEnrolled = false;
       if (userId) {
@@ -212,6 +216,7 @@ export const getCourseDetail = async (req: Request, res: Response): Promise<void
             }
           }
         });
+        console.log("isenroll", enrollment)
         isEnrolled = !!enrollment;
       }
 
