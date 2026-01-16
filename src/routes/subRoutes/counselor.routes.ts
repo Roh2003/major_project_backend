@@ -27,6 +27,7 @@ import { Router } from "express";
 const router = Router()
 
 // ========================================
+
 // ADMIN ROUTES
 // ========================================
 router.post('/', authAdmin, createCounselor)                    // Create counselor

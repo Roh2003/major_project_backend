@@ -382,6 +382,8 @@ export const getCounselorProfile = async (req: Request, res: Response) => {
   try {
     const counselorId = req.user!.id;
 
+    console.log("yes it is hiitng profile", counselorId)
+
     const counselor = await prisma.counselor.findUnique({
       where: { id: String(counselorId) },
       select: {
