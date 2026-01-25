@@ -22,6 +22,7 @@ export const getAllCounselor = async (req: Request, res: Response): Promise<void
         specialization: true,
         employmentType: true,
         experience: true,
+        isActive:true,
         profileImage: true,
         bio: true,
         createdAt: true,
@@ -149,17 +150,17 @@ export const counselorLogin = async (req: Request, res: Response) => {
     }
 
     // Generate token - counselor.id is a STRING (UUID), not a number
-    const token = generateToken({
+    const authToken = generateToken({
       userId: counselor.id, // String UUID
       email: counselor.email,
       username: counselor.name,
       role: "Counselor" // Set proper role for authorization
     });
 
-    console.log("token", token)
+    console.log("token", authToken)
 
     sendResponse(res, true, {
-      token,
+      authToken,
       counselor: {
         id: counselor.id,
         name: counselor.name,
@@ -181,6 +182,7 @@ export const createConsultationRequest = async (req:Request, res:Response) => {
   try {
     const userId = req.user!.id;
     const { counselorId, requestType, scheduledAt, message } = req.body;
+    console.log("he it is calling new functon", counselorId)
 
     // 1️⃣ Validate counselor
     const counselor = await prisma.counselor.findUnique({
@@ -267,7 +269,7 @@ export const getConsultationRequests = async (req:Request, res:Response) => {
 
     const requests = await prisma.consultationRequest.findMany({
       where: {
-        counselorId: String(counselorId),
+        counselorId: counselorId,
         status: "PENDING",
         ...(type && { requestType: type }),
       },
@@ -302,7 +304,7 @@ export const acceptConsultationRequest = async (req: Request, res: Response) => 
       where: { id: Number(requestId) },
     })
 
-    if (!request || request.counselorId !== String(counselorId)) {
+    if (!request || request.counselorId !== counselorId) {
       return sendResponse(res, false, null, "Request not found", STATUS_CODES.NOT_FOUND);
     }
 
@@ -325,7 +327,7 @@ export const acceptConsultationRequest = async (req: Request, res: Response) => 
     const meeting = await prisma.meeting.create({
       data: {
         consultationRequestId: request.id,
-        counselorId: String(counselorId),
+        counselorId: counselorId,
         userId: request.userId,
         meetingProvider: "AGORA",
         meetingRoomId: `skillup-${request.id}-${Date.now()}`, // unique room
@@ -361,7 +363,7 @@ export const rejectConsultationRequest = async (req: Request, res: Response) => 
       where: { id: requestId },
     })
 
-    if (!request || request.counselorId !== String(counselorId)) {
+    if (!request || request.counselorId !== (counselorId)) {
       return sendResponse(res, false, null, "Request not found", STATUS_CODES.NOT_FOUND)
     }
 
@@ -399,7 +401,7 @@ export const generateAgoraToken = async (req: Request, res: Response) => {
     }
 
     // 2️⃣ Only allow participants to request the token
-    if (meeting.userId !== Number(userId) && meeting.counselorId !== String(userId)) {
+    if (meeting.userId !== Number(userId) && meeting.counselorId !== (userId)) {
       return sendResponse(res, false, null, "Access denied", STATUS_CODES.FORBIDDEN);
     }
 

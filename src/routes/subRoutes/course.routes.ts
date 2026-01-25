@@ -21,19 +21,20 @@ import {
   updateProgress, 
   unenrollCourse 
 } from '../../controllers/enrollment.controller';
-import { authAdmin, authAdminOrUser, authUser } from '../../middlewares/auth';
+import { authAdmin, authAdminOrUser, authUser, authTutor } from '../../middlewares/auth';
+import { authAdminOrTutor } from '../../middlewares/authAdminOrTutor';
 
 const router = Router();
 
-// ---- Admin Routes ----
-router.get('/', authAdmin, getAllCoursesAdmin);
-router.post('/', authAdmin, createCourse);
-router.patch('/:courseId',authAdmin,updateCourse ); // Placeholder for updateCourse
-router.put('/:courseId/publish', authAdmin, togglePublishCourse);
-router.get('/:courseId/lessons', authAdmin, getAllLessonById); 
-router.post('/:courseId/lessons', authAdmin, addLesson);
-router.put('/lessons/:lessonId', authAdmin, updateLesson); // Placeholder for updateLesson
-router.delete('/lessons/:lessonId', authAdmin, deleteLesson);
+// ---- Admin/Tutor Routes ----
+router.get('/', authAdminOrTutor, getAllCoursesAdmin); // Both can view
+router.post('/', authAdminOrTutor, createCourse); // Both can create
+router.patch('/:courseId', authAdminOrTutor, updateCourse); // Both can update
+router.put('/:courseId/publish', authAdmin, togglePublishCourse); // Only admin can publish
+router.get('/:courseId/lessons', authAdminOrTutor, getAllLessonById); 
+router.post('/:courseId/lessons', authAdminOrTutor, addLesson);
+router.put('/lessons/:lessonId', authAdminOrTutor, updateLesson);
+router.delete('/lessons/:lessonId', authAdminOrTutor, deleteLesson);
 
 // ---- User Routes ----
 router.get('/courses', authUser, getPublishedCourses);

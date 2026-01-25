@@ -21,13 +21,12 @@ import {
     endMeeting
 } from "../../controllers/meeting.controller";
 
-import { authAdmin, authAdminOrUser, authUser } from "../../middlewares/auth";
+import { authAdmin, authAdminOrUser, authUser, authCounselor, authUserOrCounselor } from "../../middlewares/auth";
 import { Router } from "express";
 
 const router = Router()
 
 // ========================================
-
 // ADMIN ROUTES
 // ========================================
 router.post('/', authAdmin, createCounselor)                    // Create counselor
@@ -47,25 +46,25 @@ router.post('/request', authUser, createConsultationRequest)    // Create consul
 // ========================================
 // COUNSELOR APP ROUTES - Request Management
 // ========================================
-router.get('/requests', authUser, getConsultationRequests)      // Get pending requests
-router.post('/requests/:id/accept', authUser, acceptConsultationRequest)  // Accept request
-router.post('/requests/:id/reject', authUser, rejectConsultationRequest)  // Reject request
+router.get('/requests', authCounselor, getConsultationRequests)      // Get pending requests
+router.post('/requests/:id/accept', authCounselor, acceptConsultationRequest)  // Accept request
+router.post('/requests/:id/reject', authCounselor, rejectConsultationRequest)  // Reject request
 
 // ========================================
 // COUNSELOR APP ROUTES - Profile & Settings
 // ========================================
-router.put('/availability', authUser, setAvailability)          // Toggle ONLINE/OFFLINE
-router.get('/profile', authUser, getCounselorProfile)           // Get own profile
-router.patch('/profile', authUser, updateCounselorProfile)      // Update profile
-router.get('/revenue', authUser, getCounselorRevenue)           // Get earnings & stats
+router.put('/availability', authCounselor, setAvailability)          // Toggle ONLINE/OFFLINE
+router.get('/profile', authCounselor, getCounselorProfile)           // Get own profile
+router.patch('/profile', authCounselor, updateCounselorProfile)      // Update profile
+router.get('/revenue', authCounselor, getCounselorRevenue)           // Get earnings & stats
 
 // ========================================
 // MEETING ROUTES - For Both Users & Counselors
 // ========================================
-router.get('/meetings', authUser, getMyMeetings)                // Get my meetings (query: ?userType=counselor)
-router.get('/meetings/:meetingId', authUser, getMeetingById)    // Get single meeting
-router.post('/meetings/:meetingId/join', authUser, joinMeeting) // Join meeting (validates time, generates token
-router.post('/meetings/:meetingId/token', authUser, generateAgoraToken) // Generate token (legacy)
-router.post('/meetings/end', authUser, endMeeting)              // End meeting
+router.get('/meetings', authUserOrCounselor, getMyMeetings)                // Get my meetings (query: ?userType=counselor)
+router.get('/meetings/:meetingId', authUserOrCounselor, getMeetingById)    // Get single meeting
+router.post('/meetings/:meetingId/join', authUserOrCounselor, joinMeeting) // Join meeting (validates time, generates token)
+router.post('/meetings/:meetingId/token', authUserOrCounselor, generateAgoraToken) // Generate token (legacy)
+router.post('/meetings/end', authUserOrCounselor, endMeeting)              // End meeting
 
 export default router;

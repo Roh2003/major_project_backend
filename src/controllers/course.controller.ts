@@ -11,7 +11,7 @@ import { comparePassword } from '../utils/authUtils';
 import { generateToken } from '../utils/generateToken';
 
 
-export const getAllCoursesAdmin = async (req: Request, res: Response): Promise<void> => {
+export const getAllCoursesAdmin = async (req: Request, res: Response) => {
     console.log("[getAllCoursesAdmin] API called");
     // console.log("[getAllCoursesAdmin] called by user:", req.user ? req.user.id : "unknown");
     try {
@@ -22,10 +22,11 @@ export const getAllCoursesAdmin = async (req: Request, res: Response): Promise<v
         orderBy: { createdAt: "desc" }
       })
       console.log(`[getAllCoursesAdmin] Successfully fetched ${courses.length} courses`);
-      sendResponse(res, true, courses, "Courses fetched successfully", 200)
+      return sendResponse(res, true, courses, "Courses fetched successfully", 200)
+      
     } catch (error) {
       console.error("[getAllCoursesAdmin] Error fetching courses:", error);
-      sendResponse(res, false, null, "Failed to fetch courses", 500)
+      return sendResponse(res, false, null, "Failed to fetch courses", 500)
     }
   }
   

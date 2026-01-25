@@ -1,7 +1,8 @@
 import jwt, { SignOptions } from "jsonwebtoken"
 
 interface Payload {
-  userId: number | string; // Support both User (number) and Counselor (string UUID)
+  userId?: number | string; // Support both User (number) and Counselor (string UUID)
+  tutorId?: number; // For tutor authentication
   email: string;
   username: string;
   role?: string

@@ -12,7 +12,7 @@ export const registerValidator = [
   // body('gender').isString().notEmpty().withMessage('Gender is required'),
   // body('state').isString().notEmpty().withMessage('State is required'),
   // body('country').isString().notEmpty().withMessage('Country is required'),
-  // body('currenrStudyLevel').isIn([
+  // body('currentStudylevel').isIn([
   //   'PRIMARY_SCHOOL',
   //   'MIDDLE_SCHOOL',
   //   'HIGH_SCHOOL',

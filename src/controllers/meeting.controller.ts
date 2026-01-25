@@ -6,60 +6,236 @@ import { RtcTokenBuilder, RtcRole } from "agora-access-token";
 
 /**
  * Get all meetings for a user (learner or counselor)
+ * For PENDING tab: Shows both pending consultation requests AND meetings
+ * For SCHEDULED/COMPLETED tabs: Shows only meetings
  */
 export const getMyMeetings = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { status, userType } = req.query;
+    console.log("User ID: ", userId);
+    const { status } = req.query;
 
-    // Determine if user is counselor or regular user
-    const isCounselor = userType === 'counselor';
-    
-    const where: any = isCounselor 
-      ? { counselorId: String(userId) }
-      : { userId: Number(userId) };
+    console.log("Status filter: ", status);
 
-    if (status) {
-      where.status = status;
-    }
+    let combinedResults: any[] = [];
 
-    const meetings = await prisma.meeting.findMany({
-      where,
-      include: {
+    if (status === 'PENDING') {
+      // For PENDING tab: Fetch both consultation requests and meetings
+      
+      // 1. Get pending consultation requests (not yet accepted)
+      const pendingRequests = await prisma.consultationRequest.findMany({
+        where: {
+          userId: Number(userId),
+          status: 'PENDING', // Waiting for counselor acceptance
+        },
+        include: {
+          counselor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profileImage: true,
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      // 2. Get meetings that are pending or scheduled
+      const pendingMeetings = await prisma.meeting.findMany({
+        where: {
+          userId: Number(userId),
+          status: { in: ['PENDING', 'SCHEDULED'] }
+        },
+        include: {
+          consultationRequest: {
+            select: {
+              requestType: true,
+              message: true,
+              scheduledAt: true,
+            }
+          },
+          counselor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profileImage: true,
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      // Transform consultation requests to match meeting structure
+      const transformedRequests = pendingRequests.map(req => ({
+        id: `request-${req.id}`, // Prefix to distinguish from meetings
+        requestId: req.id,
+        type: 'request', // Flag to identify this is a request
+        status: 'PENDING_REQUEST', // Custom status for UI
+        counselor: req.counselor,
         consultationRequest: {
-          select: {
-            requestType: true,
-            message: true,
+          requestType: req.requestType,
+          message: req.message,
+          scheduledAt: req.scheduledAt,
+        },
+        createdAt: req.createdAt,
+        scheduledTime: req.scheduledAt,
+      }));
+
+      // Add type flag to meetings
+      const transformedMeetings = pendingMeetings.map(meeting => ({
+        ...meeting,
+        type: 'meeting',
+      }));
+
+      // Combine and sort by creation date
+      combinedResults = [...transformedRequests, ...transformedMeetings].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+    } else if (status === 'SCHEDULED') {
+      // For SCHEDULED tab: Only show scheduled meetings
+      const meetings = await prisma.meeting.findMany({
+        where: {
+          userId: Number(userId),
+          status: 'SCHEDULED'
+        },
+        include: {
+          consultationRequest: {
+            select: {
+              requestType: true,
+              message: true,
+              scheduledAt: true,
+            }
+          },
+          counselor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profileImage: true,
+            }
           }
         },
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+        orderBy: {
+          scheduledTime: 'asc'
+        }
+      });
+
+      combinedResults = meetings.map(m => ({ ...m, type: 'meeting' }));
+
+    } else if (status === 'COMPLETED') {
+      // For COMPLETED tab: Only show completed meetings
+      const meetings = await prisma.meeting.findMany({
+        where: {
+          userId: Number(userId),
+          status: 'COMPLETED'
+        },
+        include: {
+          consultationRequest: {
+            select: {
+              requestType: true,
+              message: true,
+              scheduledAt: true,
+            }
+          },
+          counselor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profileImage: true,
+            }
           }
         },
-        counselor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            specialization: true,
-            profileImage: true,
+        orderBy: {
+          endTime: 'desc'
+        }
+      });
+
+      combinedResults = meetings.map(m => ({ ...m, type: 'meeting' }));
+
+    } else {
+      // No filter: Return all (requests + meetings)
+      const allRequests = await prisma.consultationRequest.findMany({
+        where: {
+          userId: Number(userId),
+          status: 'PENDING',
+        },
+        include: {
+          counselor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profileImage: true,
+            }
           }
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+      });
+
+      const allMeetings = await prisma.meeting.findMany({
+        where: {
+          userId: Number(userId),
+        },
+        include: {
+          consultationRequest: {
+            select: {
+              requestType: true,
+              message: true,
+              scheduledAt: true,
+            }
+          },
+          counselor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profileImage: true,
+            }
+          }
+        }
+      });
+
+      const transformedRequests = allRequests.map(req => ({
+        id: `request-${req.id}`,
+        requestId: req.id,
+        type: 'request',
+        status: 'PENDING_REQUEST',
+        counselor: req.counselor,
+        consultationRequest: {
+          requestType: req.requestType,
+          message: req.message,
+          scheduledAt: req.scheduledAt,
+        },
+        createdAt: req.createdAt,
+        scheduledTime: req.scheduledAt,
+      }));
+
+      combinedResults = [
+        ...transformedRequests,
+        ...allMeetings.map(m => ({ ...m, type: 'meeting' }))
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    console.log("Results found: ", combinedResults.length);
 
     return sendResponse(
       res,
       true,
-      meetings,
-      'Meetings fetched successfully',
+      combinedResults,
+      'Meetings and requests fetched successfully',
       STATUS_CODES.OK
     );
   } catch (error) {
@@ -105,7 +281,7 @@ export const getMeetingById = async (req: Request, res: Response) => {
     }
 
     // Verify user access
-    if (meeting.userId !== Number(userId) && meeting.counselorId !== String(userId)) {
+    if (meeting.userId !== Number(userId) && meeting.counselorId !== Number(userId)) {
       return sendResponse(res, false, null, 'Unauthorized', STATUS_CODES.FORBIDDEN);
     }
 
@@ -142,7 +318,7 @@ export const joinMeeting = async (req: Request, res: Response) => {
     // Verify user access
     const isCounselor = userType === 'counselor';
     const isAuthorized = isCounselor 
-      ? meeting.counselorId === String(userId)
+      ? meeting.counselorId === Number(userId)
       : meeting.userId === Number(userId);
 
     if (!isAuthorized) {
@@ -253,7 +429,7 @@ export const setAvailability = async (req: Request, res: Response) => {
     const { isActive } = req.body;
 
     const counselor = await prisma.counselor.update({
-      where: { id: String(counselorId) },
+      where: { id: Number(counselorId) },
       data: { isActive },
     });
 
@@ -280,7 +456,7 @@ export const getCounselorRevenue = async (req: Request, res: Response) => {
     const counselorId = req.user!.id;
 
     const counselor = await prisma.counselor.findUnique({
-      where: { id: String(counselorId) },
+      where: { id: Number(counselorId) },
       select: {
         totalMeetings: true,
         totalRevenue: true,
@@ -294,7 +470,7 @@ export const getCounselorRevenue = async (req: Request, res: Response) => {
     // Get meeting history
     const meetings = await prisma.meeting.findMany({
       where: {
-        counselorId: String(counselorId),
+        counselorId: Number(counselorId),
         status: 'COMPLETED',
       },
       include: {
@@ -352,7 +528,7 @@ export const updateCounselorProfile = async (req: Request, res: Response) => {
     if (specialization) updateData.specialization = specialization;
 
     const counselor = await prisma.counselor.update({
-      where: { id: String(counselorId) },
+      where: { id: Number(counselorId) },
       data: updateData,
     });
 
@@ -380,12 +556,13 @@ export const updateCounselorProfile = async (req: Request, res: Response) => {
  */
 export const getCounselorProfile = async (req: Request, res: Response) => {
   try {
-    const counselorId = req.user!.id;
+    console.log("yes it is hiitng profile on progile 1")
+    const userEmail = req.user!.email;
 
-    console.log("yes it is hiitng profile", counselorId)
+    console.log("yes it is hiitng profile, user email:", userEmail)
 
     const counselor = await prisma.counselor.findUnique({
-      where: { id: String(counselorId) },
+      where: { email: userEmail },
       select: {
         id: true,
         name: true,
@@ -401,6 +578,8 @@ export const getCounselorProfile = async (req: Request, res: Response) => {
         totalRevenue: true,
       }
     });
+
+    console.log("status 2", counselor)
 
     if (!counselor) {
       return sendResponse(res, false, null, 'Counselor not found', STATUS_CODES.NOT_FOUND);
@@ -433,7 +612,7 @@ export const generateAgoraToken = async (req: Request, res: Response) => {
         return sendResponse(res, false, null, "Meeting not found", STATUS_CODES.NOT_FOUND);
       }
   
-      if (meeting.userId !== Number(userId) && meeting.counselorId !== String(userId)) {
+      if (meeting.userId !== Number(userId) && meeting.counselorId !== Number(userId)) {
         return sendResponse(res, false, null, "Access denied", STATUS_CODES.FORBIDDEN);
       }
   
@@ -492,8 +671,8 @@ export const generateAgoraToken = async (req: Request, res: Response) => {
         return sendResponse(res, false, null, "Unauthorized", STATUS_CODES.FORBIDDEN);
       }
 
-      if (meeting.status !== "ONGOING") {
-        return sendResponse(res, false, null, "Meeting already ended", STATUS_CODES.BAD_REQUEST);
+      if (meeting.status !== "ONGOING" && meeting.status !== "PENDING") {
+        return sendResponse(res, false, null, `Meeting is already ${meeting.status.toLowerCase()}`, STATUS_CODES.BAD_REQUEST);
       }
 
       const endTime = new Date();
