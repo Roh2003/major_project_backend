@@ -9,6 +9,7 @@ import { hash } from 'crypto';
 import { hashPassword } from '../utils/password';
 import { comparePassword } from '../utils/authUtils';
 import { generateToken } from '../utils/generateToken';
+import { number } from 'joi';
 
 
 export const getAllCoursesAdmin = async (req: Request, res: Response) => {
@@ -59,7 +60,8 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
           thumbnailUrl,
           isPublished: false,
           instructor,
-          duration
+          duration,
+          tutorId: req.user?.id
         }
       })
   
@@ -288,7 +290,7 @@ export const addLesson = async (req: Request, res: Response): Promise<void> => {
           courseId : Number(courseId),
           title,
           description,
-          duration,
+          duration: Number(duration),
           videoType: "YOUTUBE",
           videoId,
           isFreePreview: !!isFreePreview,

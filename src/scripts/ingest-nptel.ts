@@ -136,7 +136,8 @@ async function ingestNptel(): Promise<void> {
             level: CourseLevel.BEGINNER,
             category: null,
             language: "English",
-            isPublished: false
+            isPublished: false,
+            tutorId: null
           }
         });
 
@@ -177,7 +178,11 @@ async function ingestNptel(): Promise<void> {
 
         committedCourses++;
         console.log(`📦 ${lessonCount} lessons staged`);
-      });
+      },
+      {
+        timeout: 30000
+      }
+    );
 
       console.log(`🎉 Course committed successfully\n`);
     } catch (err) {

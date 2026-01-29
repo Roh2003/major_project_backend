@@ -254,16 +254,12 @@ export const authAdminOrUser = async (req: Request, res: Response, next: NextFun
 
 export const authCounselor = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        console.log("authCounselor 1")
         const authHeader = req.headers.authorization;
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             res.status(401).json({ success: false, message: "No token provided" });
             return;
         }
-
-        console.log("authCounselor 2")
-
 
         const token = authHeader.substring(7);
         const secret = process.env.JWT_SECRET_KEY;
@@ -272,27 +268,19 @@ export const authCounselor = async (req: Request, res: Response, next: NextFunct
             res.status(500).json({ success: false, message: "Server configuration error" });
             return;
         }
-        console.log("authCounselor 3")
-
 
         // Verify JWT token
         const decoded = jwt.verify(token, secret) as JwtPayload;
-
-        console.log("Decoded data: ", decoded)
         
         // Find counselor in Counselor table by email (since Counselor table is separate from User table)
         const counselor = await prisma.counselor.findUnique({
             where: { email: decoded.email }
         });
 
-        console.log("authCounselor 4")
-
-
         if (!counselor) {
             res.status(401).json({ success: false, message: "Counselor not found" });
             return;
         }
-        console.log("authCounselor 5")
 
         // Attach counselor info to request
         req.user = {
@@ -302,7 +290,6 @@ export const authCounselor = async (req: Request, res: Response, next: NextFunct
             role: 'Counselor'
         };
 
-        // console.log(` [authCounselor] Authenticated counselor:  (ID: )`);
         next();
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {
@@ -409,7 +396,6 @@ export const authUserOrCounselor = async (req: Request, res: Response, next: Nex
  */
 export const authTutor = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        console.log("[authTutor] Authenticating tutor");
         const authHeader = req.headers.authorization;
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -428,8 +414,6 @@ export const authTutor = async (req: Request, res: Response, next: NextFunction)
         // Verify JWT token
         const decoded = jwt.verify(token, secret) as any;
         
-        console.log("[authTutor] Decoded token:", decoded);
-
         // Find tutor in Tutor table by tutorId
         const tutor = await prisma.tutor.findUnique({
             where: { id: decoded.tutorId }
@@ -460,7 +444,6 @@ export const authTutor = async (req: Request, res: Response, next: NextFunction)
             role: 'TUTOR'
         };
 
-        console.log("[authTutor] Tutor authenticated successfully");
         next();
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {

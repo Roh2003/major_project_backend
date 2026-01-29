@@ -27,7 +27,7 @@ import { authAdminOrTutor } from '../../middlewares/authAdminOrTutor';
 const router = Router();
 
 // ---- Admin/Tutor Routes ----
-router.get('/', authAdminOrTutor, getAllCoursesAdmin); // Both can view
+router.get('/', getAllCoursesAdmin); // Both can view
 router.post('/', authAdminOrTutor, createCourse); // Both can create
 router.patch('/:courseId', authAdminOrTutor, updateCourse); // Both can update
 router.put('/:courseId/publish', authAdmin, togglePublishCourse); // Only admin can publish

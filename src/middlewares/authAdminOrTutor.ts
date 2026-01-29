@@ -24,34 +24,44 @@ export const authAdminOrTutor = async (req: Request, res: Response, next: NextFu
         }
 
         // Verify JWT token
-        const decoded = jwt.verify(token, secret) as any;
+        const decoded = jwt.verify(token, secret) as JwtPayload;
         
-        // Check if it's an admin token
-        if (decoded.id && decoded.role === 'Admin') {
-            const admin = await prisma.user.findUnique({
-                where: { id: decoded.id }
+        // 1. Check if token belongs to an Admin (User table)
+        if (decoded.userId) {
+            const user = await prisma.user.findUnique({
+                where: { id: decoded.userId },
+                include: {
+                    userRoleMappings: {
+                        include: {
+                            role: true
+                        }
+                    }
+                }
             });
 
-            if (admin && admin.isActive && !admin.isDeleted) {
-                req.user = {
-                    id: admin.id,
-                    email: admin.email,
-                    username: admin.username,
-                    role: 'Admin'
-                };
-                return next();
+            if (user && !user.isDeleted && user.isActive) {
+                const roleName = user.userRoleMappings[0]?.role.name;
+                if (roleName === "admin" || roleName === "SUPERADMIN") {
+                    req.user = {
+                        id: user.id,
+                        email: user.email,
+                        username: user.username,
+                        role: roleName
+                    };
+                    return next();
+                }
             }
         }
         
-        // Check if it's a tutor token
-        if (decoded.tutorId && decoded.role === 'TUTOR') {
+        // 2. Check if token belongs to a Tutor (Tutor table)
+        if (decoded.tutorId) {
             const tutor = await prisma.tutor.findUnique({
                 where: { id: decoded.tutorId }
             });
 
             if (tutor && tutor.isActive && !tutor.isDeleted) {
                 req.user = {
-                    tutorId: tutor.id,
+                    tutorId: tutor.id, // Keep tutorId for specific usage
                     id: tutor.id,
                     email: tutor.email,
                     username: tutor.username,
@@ -61,8 +71,8 @@ export const authAdminOrTutor = async (req: Request, res: Response, next: NextFu
             }
         }
 
-        // If we reach here, authentication failed
-        res.status(401).json({ success: false, message: "Unauthorized" });
+        // If we reach here, authentication failed for both
+        res.status(401).json({ success: false, message: "Unauthorized: Admin or Tutor access required" });
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {
             res.status(401).json({ success: false, message: "Invalid token" });
