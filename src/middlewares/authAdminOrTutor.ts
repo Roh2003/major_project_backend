@@ -2,10 +2,6 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../prisma';
 
-/**
- * Middleware that allows EITHER admin OR tutor authentication
- * Checks token and validates against both admin and tutor tables
- */
 export const authAdminOrTutor = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const authHeader = req.headers.authorization;
@@ -41,7 +37,7 @@ export const authAdminOrTutor = async (req: Request, res: Response, next: NextFu
 
             if (user && !user.isDeleted && user.isActive) {
                 const roleName = user.userRoleMappings[0]?.role.name;
-                if (roleName === "admin" || roleName === "SUPERADMIN") {
+                if (roleName === "admin" || roleName === "superAdmin") {
                     req.user = {
                         id: user.id,
                         email: user.email,
