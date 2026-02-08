@@ -61,7 +61,8 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
           isPublished: false,
           instructor,
           duration,
-          tutorId: req.user?.id
+          // tutorId: req.user?.id,
+          createdBy: req.user?.id
         }
       })
   
