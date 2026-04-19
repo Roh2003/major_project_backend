@@ -248,12 +248,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       { userId: user.id, email: user.email, role: user.userRoleMappings[0].role.name },
     );
 
-    const refreshToken = generateToken(
-      { userId: user.id, email: user.email, role: user.userRoleMappings[0].role.name },
-      true)
-
     console.log("authToken", authToken)
-    console.log("refreshToken", refreshToken)
 
     const credits = (user as typeof user & { credits?: number }).credits ?? 0;
 
