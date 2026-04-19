@@ -257,6 +257,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const credits = (user as typeof user & { credits?: number }).credits ?? 0;
 
+    console.log("api is hitting in backend 8", credits)
+
     sendResponse(
       res,
       true,
