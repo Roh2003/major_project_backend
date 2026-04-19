@@ -41,7 +41,7 @@ export const authAdminOrTutor = async (req: Request, res: Response, next: NextFu
                     req.user = {
                         id: user.id,
                         email: user.email,
-                        username: user.username,
+                        // username: user.username,
                         role: roleName
                     };
                     return next();
@@ -60,7 +60,7 @@ export const authAdminOrTutor = async (req: Request, res: Response, next: NextFu
                     tutorId: tutor.id, // Keep tutorId for specific usage
                     id: tutor.id,
                     email: tutor.email,
-                    username: tutor.username,
+                    // username: tutor.username,
                     role: 'TUTOR'
                 };
                 return next();

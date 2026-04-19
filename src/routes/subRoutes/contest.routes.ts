@@ -11,7 +11,8 @@ import {
   getContestDetails,
   startContest,
   submitContest,
-  getContestLeaderboard
+  getContestLeaderboard,
+  distributeContestCredits,
 } from "../../controllers/contest.controller";
 import { authAdmin, authAdminOrUser, authUser } from "../../middlewares/auth";
 
@@ -23,6 +24,7 @@ const router = Router()
 router.post("/", authAdmin, createContest)                      // Create contest
 router.get("/", authAdmin, getAllContestsAdmin) // Get all contests (admin)
 router.put("/:contestId/publish", authAdmin, publishContest)    // Publish/Unpublish contest
+router.post("/:contestId/distribute-credits", authAdmin, distributeContestCredits) // Distribute top-rank credits
 
 // ========================================
 // QUESTION MANAGEMENT (Admin only)

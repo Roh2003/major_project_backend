@@ -11,6 +11,157 @@ import { comparePassword } from '../utils/authUtils';
 import { generateToken } from '../utils/generateToken';
 import { number } from 'joi';
 
+type RankedAttempt = {
+  id: number;
+  userId: number;
+  score: number;
+  timeTaken: number;
+  submittedAt: Date;
+};
+
+const rewardByRank = (contest: {
+  firstRankCredits: number;
+  secondRankCredits: number;
+  thirdRankCredits: number;
+}, rank: number): number => {
+  if (rank === 1) return contest.firstRankCredits;
+  if (rank === 2) return contest.secondRankCredits;
+  if (rank === 3) return contest.thirdRankCredits;
+  return 0;
+};
+
+const buildUniqueTopThree = (attempts: RankedAttempt[]): RankedAttempt[] => {
+  const sorted = [...attempts].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.timeTaken !== b.timeTaken) return a.timeTaken - b.timeTaken;
+    return a.submittedAt.getTime() - b.submittedAt.getTime();
+  });
+
+  const seen = new Set<number>();
+  const winners: RankedAttempt[] = [];
+
+  for (const attempt of sorted) {
+    if (seen.has(attempt.userId)) continue;
+    seen.add(attempt.userId);
+    winners.push(attempt);
+    if (winners.length === 3) break;
+  }
+
+  return winners;
+};
+
+const distributeContestCreditsIfEligible = async (contestId: number) => {
+  const contest = await prisma.contest.findUnique({ where: { id: contestId } });
+
+  if (!contest) {
+    return { distributedNow: false, reason: 'contest_not_found' };
+  }
+
+  if (contest.creditsDistributed) {
+    return { distributedNow: false, reason: 'already_distributed' };
+  }
+
+  if (contest.endTime > new Date()) {
+    return { distributedNow: false, reason: 'contest_not_ended' };
+  }
+
+  const attempts = await prisma.contestAttempt.findMany({
+    where: {
+      contestId,
+      submittedAt: { not: null },
+      score: { not: null }
+    },
+    select: {
+      id: true,
+      userId: true,
+      score: true,
+      timeTaken: true,
+      submittedAt: true,
+    }
+  });
+
+  const normalizedAttempts: RankedAttempt[] = attempts
+    .filter((a): a is typeof a & { score: number; submittedAt: Date } => a.score !== null && a.submittedAt !== null)
+    .map((a) => ({
+      id: a.id,
+      userId: a.userId,
+      score: a.score,
+      timeTaken: a.timeTaken ?? Number.MAX_SAFE_INTEGER,
+      submittedAt: a.submittedAt,
+    }));
+
+  const topThree = buildUniqueTopThree(normalizedAttempts);
+
+  await prisma.$transaction(async (tx) => {
+    const freshContest = await tx.contest.findUnique({
+      where: { id: contestId },
+      select: {
+        id: true,
+        creditsDistributed: true,
+        firstRankCredits: true,
+        secondRankCredits: true,
+        thirdRankCredits: true,
+      }
+    });
+
+    if (!freshContest || freshContest.creditsDistributed) {
+      return;
+    }
+
+    for (let i = 0; i < topThree.length; i += 1) {
+      const rank = i + 1;
+      const winner = topThree[i];
+      const credits = rewardByRank(freshContest, rank);
+
+      await tx.contestCreditPayout.create({
+        data: {
+          contestId,
+          userId: winner.userId,
+          attemptId: winner.id,
+          rank,
+          creditsAwarded: credits,
+        }
+      });
+
+      if (credits > 0) {
+        await tx.user.update({
+          where: { id: winner.userId },
+          data: {
+            credits: {
+              increment: credits,
+            }
+          }
+        });
+      }
+    }
+
+    await tx.contest.update({
+      where: { id: contestId },
+      data: {
+        creditsDistributed: true,
+        creditsDistributedAt: new Date(),
+      }
+    });
+  });
+
+  return { distributedNow: true, reason: 'distributed' };
+};
+
+export const sweepContestCreditDistributions = async (): Promise<void> => {
+  const endedContests = await prisma.contest.findMany({
+    where: {
+      creditsDistributed: false,
+      endTime: { lte: new Date() },
+      isPublished: true,
+    },
+    select: { id: true },
+  });
+
+  for (const contest of endedContests) {
+    await distributeContestCreditsIfEligible(contest.id);
+  }
+};
+
 export const createContest = async (req: Request, res: Response): Promise<void> => {
     console.log("[createContest] API called");
   
@@ -22,7 +173,10 @@ export const createContest = async (req: Request, res: Response): Promise<void> 
         startTime,
         endTime,
         durationMinutes,
-        totalMarks
+        totalMarks,
+        firstRankCredits,
+        secondRankCredits,
+        thirdRankCredits,
       } = req.body;
   
       const contest = await prisma.contest.create({
@@ -34,6 +188,9 @@ export const createContest = async (req: Request, res: Response): Promise<void> 
           endTime: new Date(endTime),
           durationMinutes: Number(durationMinutes),
           totalMarks,
+          firstRankCredits: Number(firstRankCredits ?? 0),
+          secondRankCredits: Number(secondRankCredits ?? 0),
+          thirdRankCredits: Number(thirdRankCredits ?? 0),
           isActive: true,
           isPublished: false
         }
@@ -62,6 +219,9 @@ export const updateContest = async (req: Request, res: Response): Promise<void> 
       endTime,
       durationMinutes,
       totalMarks,
+      firstRankCredits,
+      secondRankCredits,
+      thirdRankCredits,
       isActive,
       isPublished
     } = req.body;
@@ -75,6 +235,9 @@ export const updateContest = async (req: Request, res: Response): Promise<void> 
     if (endTime !== undefined) updateData.endTime = new Date(endTime);
     if (durationMinutes !== undefined) updateData.durationMinutes = Number(durationMinutes);
     if (totalMarks !== undefined) updateData.totalMarks = totalMarks;
+    if (firstRankCredits !== undefined) updateData.firstRankCredits = Number(firstRankCredits);
+    if (secondRankCredits !== undefined) updateData.secondRankCredits = Number(secondRankCredits);
+    if (thirdRankCredits !== undefined) updateData.thirdRankCredits = Number(thirdRankCredits);
     if (isActive !== undefined) updateData.isActive = isActive;
     if (isPublished !== undefined) updateData.isPublished = isPublished;
 
@@ -290,6 +453,27 @@ export const getContestDetails = async (req: Request, res: Response): Promise<vo
     try {
       const { contestId } = req.params;
       const userId = req.user?.id;
+
+        const contest = await prisma.contest.findUnique({
+          where: { id: Number(contestId) },
+          select: {
+            id: true,
+            isPublished: true,
+            startTime: true,
+            endTime: true,
+          }
+        });
+
+        if (!contest) {
+          sendResponse(res, false, null, "Contest not found", 404);
+          return;
+        }
+
+        const now = new Date();
+        if (!contest.isPublished || now < contest.startTime || now > contest.endTime) {
+          sendResponse(res, false, null, "Contest is not active", 400);
+          return;
+        }
   
       // Validate user is authenticated
       if (!userId) {
@@ -320,6 +504,27 @@ export const getContestDetails = async (req: Request, res: Response): Promise<vo
       const { contestId } = req.params;
       const { answers, timeTaken } = req.body;
       const userId = req.user?.id;
+
+        const contest = await prisma.contest.findUnique({
+          where: { id: Number(contestId) },
+          select: {
+            id: true,
+            isPublished: true,
+            startTime: true,
+            endTime: true,
+          }
+        });
+
+        if (!contest) {
+          sendResponse(res, false, null, "Contest not found", 404);
+          return;
+        }
+
+        const now = new Date();
+        if (!contest.isPublished || now < contest.startTime || now > contest.endTime) {
+          sendResponse(res, false, null, "Contest is no longer active", 400);
+          return;
+        }
   
       // Validate user is authenticated
       if (!userId) {
@@ -398,9 +603,25 @@ export const getContestLeaderboard = async (req: Request, res: Response): Promis
   
     try {
       const { contestId } = req.params;
+      const numericContestId = Number(contestId);
+
+      const distributionResult = await distributeContestCreditsIfEligible(numericContestId);
+      console.log("[getContestLeaderboard] Distribution status:", distributionResult);
+
+      const contest = await prisma.contest.findUnique({
+        where: { id: numericContestId },
+        select: {
+          id: true,
+          firstRankCredits: true,
+          secondRankCredits: true,
+          thirdRankCredits: true,
+          creditsDistributed: true,
+          creditsDistributedAt: true,
+        }
+      });
   
       const leaderboard = await prisma.contestAttempt.findMany({
-        where: { contestId: Number(contestId) },
+        where: { contestId: numericContestId },
         orderBy: [
           { score: "desc" },
           { timeTaken: "asc" }
@@ -418,12 +639,65 @@ export const getContestLeaderboard = async (req: Request, res: Response): Promis
           }
         }
       });
-  
-      sendResponse(res, true, leaderboard, "Leaderboard fetched", 200);
+
+      sendResponse(
+        res,
+        true,
+        {
+          leaderboard,
+          rewards: contest
+            ? {
+                firstRankCredits: contest.firstRankCredits,
+                secondRankCredits: contest.secondRankCredits,
+                thirdRankCredits: contest.thirdRankCredits,
+                creditsDistributed: contest.creditsDistributed,
+                creditsDistributedAt: contest.creditsDistributedAt,
+              }
+            : null,
+        },
+        "Leaderboard fetched",
+        200
+      );
   
     } catch (error) {
       console.error("[getContestLeaderboard] Error:", error);
       sendResponse(res, false, null, "Failed to fetch leaderboard", 500);
     }
   };
+
+export const distributeContestCredits = async (req: Request, res: Response): Promise<void> => {
+  console.log("[distributeContestCredits] API called");
+
+  try {
+    const { contestId } = req.params;
+    const numericContestId = Number(contestId);
+
+    if (Number.isNaN(numericContestId)) {
+      sendResponse(res, false, null, "Invalid contest id", 400);
+      return;
+    }
+
+    const result = await distributeContestCreditsIfEligible(numericContestId);
+
+    if (result.reason === 'contest_not_found') {
+      sendResponse(res, false, null, "Contest not found", 404);
+      return;
+    }
+
+    if (result.reason === 'contest_not_ended') {
+      sendResponse(res, false, null, "Contest has not ended yet", 400);
+      return;
+    }
+
+    if (result.reason === 'already_distributed') {
+      sendResponse(res, true, { distributed: false }, "Credits already distributed", 200);
+      return;
+    }
+
+    sendResponse(res, true, { distributed: true }, "Contest credits distributed successfully", 200);
+  } catch (error) {
+    console.error("[distributeContestCredits] Error:", error);
+    sendResponse(res, false, null, "Failed to distribute contest credits", 500);
+  }
+};
   

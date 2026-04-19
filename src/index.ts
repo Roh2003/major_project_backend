@@ -12,6 +12,7 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import { logger } from './utils/logger';
 import routes from './routes';
 import { connectDatabase } from './config/database';
+import { sweepContestCreditDistributions } from './controllers/contest.controller';
 
 // Load environment variables
 dotenv.config();
@@ -73,6 +74,20 @@ async function startServer() {
       logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
       logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
     });
+
+    const sweepIntervalMs = 5 * 60 * 1000;
+    const runSweep = async () => {
+      try {
+        await sweepContestCreditDistributions();
+      } catch (error) {
+        logger.error('❌ Contest credit sweep failed:', error);
+      }
+    };
+
+    void runSweep();
+    setInterval(() => {
+      void runSweep();
+    }, sweepIntervalMs);
   } catch (error) {
     logger.error('❌ Failed to start server:', error);
     process.exit(1);

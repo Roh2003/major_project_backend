@@ -4,50 +4,75 @@ import { sendResponse } from '../utils/responseUtils';
 import STATUS_CODES from '../utils/statusCodes';
 import { RtcTokenBuilder, RtcRole } from "agora-access-token";
 
-/**
- * Get all meetings for a user (learner or counselor)
- * For PENDING tab: Shows both pending consultation requests AND meetings
- * For SCHEDULED/COMPLETED tabs: Shows only meetings
- */
 export const getMyMeetings = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    console.log("User ID: ", userId);
+    const userRole = req.user!.role;
+    console.log("User ID: ", userId, "Role:", userRole);
     const { status } = req.query;
 
     console.log("Status filter: ", status);
+
+    // Determine if the caller is a counselor or a learner
+    const isCounselor = userRole === 'Counselor';
+
+    // Build the correct where clause based on role
+    const meetingWhereBase = isCounselor
+      ? { counselorId: Number(userId) }
+      : { userId: Number(userId) };
 
     let combinedResults: any[] = [];
 
     if (status === 'PENDING') {
       // For PENDING tab: Fetch both consultation requests and meetings
       
-      // 1. Get pending consultation requests (not yet accepted)
-      const pendingRequests = await prisma.consultationRequest.findMany({
-        where: {
-          userId: Number(userId),
-          status: 'PENDING', // Waiting for counselor acceptance
-        },
-        include: {
-          counselor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              specialization: true,
-              profileImage: true,
+      if (!isCounselor) {
+        // Only learners have consultation requests by userId
+        // 1. Get pending consultation requests (not yet accepted)
+        const pendingRequests = await prisma.consultationRequest.findMany({
+          where: {
+            userId: Number(userId),
+            status: 'PENDING', // Waiting for counselor acceptance
+          },
+          include: {
+            counselor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                specialization: true,
+                profileImage: true,
+              }
             }
+          },
+          orderBy: {
+            createdAt: 'desc'
           }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      });
+        });
+
+        // Transform consultation requests to match meeting structure
+        const transformedRequests = pendingRequests.map(req => ({
+          id: `request-${req.id}`, // Prefix to distinguish from meetings
+          requestId: req.id,
+          type: 'request', // Flag to identify this is a request
+          status: 'PENDING_REQUEST', // Custom status for UI
+          counselor: req.counselor,
+          consultationRequest: {
+            requestType: req.requestType,
+            message: req.message,
+            scheduledAt: req.scheduledAt,
+          },
+          createdAt: req.createdAt,
+          scheduledTime: req.scheduledAt,
+        }));
+
+        combinedResults.push(...transformedRequests);
+      }
 
       // 2. Get meetings that are pending or scheduled
       const pendingMeetings = await prisma.meeting.findMany({
         where: {
-          userId: Number(userId),
+          ...meetingWhereBase,
           status: { in: ['PENDING', 'SCHEDULED'] }
         },
         include: {
@@ -66,6 +91,14 @@ export const getMyMeetings = async (req: Request, res: Response) => {
               specialization: true,
               profileImage: true,
             }
+          },
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
           }
         },
         orderBy: {
@@ -73,30 +106,16 @@ export const getMyMeetings = async (req: Request, res: Response) => {
         }
       });
 
-      // Transform consultation requests to match meeting structure
-      const transformedRequests = pendingRequests.map(req => ({
-        id: `request-${req.id}`, // Prefix to distinguish from meetings
-        requestId: req.id,
-        type: 'request', // Flag to identify this is a request
-        status: 'PENDING_REQUEST', // Custom status for UI
-        counselor: req.counselor,
-        consultationRequest: {
-          requestType: req.requestType,
-          message: req.message,
-          scheduledAt: req.scheduledAt,
-        },
-        createdAt: req.createdAt,
-        scheduledTime: req.scheduledAt,
-      }));
-
       // Add type flag to meetings
       const transformedMeetings = pendingMeetings.map(meeting => ({
         ...meeting,
         type: 'meeting',
       }));
 
-      // Combine and sort by creation date
-      combinedResults = [...transformedRequests, ...transformedMeetings].sort(
+      combinedResults.push(...transformedMeetings);
+
+      // Sort by creation date
+      combinedResults.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
@@ -104,7 +123,7 @@ export const getMyMeetings = async (req: Request, res: Response) => {
       // For SCHEDULED tab: Only show scheduled meetings
       const meetings = await prisma.meeting.findMany({
         where: {
-          userId: Number(userId),
+          ...meetingWhereBase,
           status: 'SCHEDULED'
         },
         include: {
@@ -123,10 +142,18 @@ export const getMyMeetings = async (req: Request, res: Response) => {
               specialization: true,
               profileImage: true,
             }
+          },
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
           }
         },
         orderBy: {
-          scheduledTime: 'asc'
+          scheduledTime: 'desc'
         }
       });
 
@@ -136,7 +163,7 @@ export const getMyMeetings = async (req: Request, res: Response) => {
       // For COMPLETED tab: Only show completed meetings
       const meetings = await prisma.meeting.findMany({
         where: {
-          userId: Number(userId),
+          ...meetingWhereBase,
           status: 'COMPLETED'
         },
         include: {
@@ -155,6 +182,14 @@ export const getMyMeetings = async (req: Request, res: Response) => {
               specialization: true,
               profileImage: true,
             }
+          },
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
           }
         },
         orderBy: {
@@ -166,28 +201,45 @@ export const getMyMeetings = async (req: Request, res: Response) => {
 
     } else {
       // No filter: Return all (requests + meetings)
-      const allRequests = await prisma.consultationRequest.findMany({
-        where: {
-          userId: Number(userId),
-          status: 'PENDING',
-        },
-        include: {
-          counselor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              specialization: true,
-              profileImage: true,
+      if (!isCounselor) {
+        const allRequests = await prisma.consultationRequest.findMany({
+          where: {
+            userId: Number(userId),
+            status: 'PENDING',
+          },
+          include: {
+            counselor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                specialization: true,
+                profileImage: true,
+              }
             }
           }
-        }
-      });
+        });
+
+        const transformedRequests = allRequests.map(req => ({
+          id: `request-${req.id}`,
+          requestId: req.id,
+          type: 'request',
+          status: 'PENDING_REQUEST',
+          counselor: req.counselor,
+          consultationRequest: {
+            requestType: req.requestType,
+            message: req.message,
+            scheduledAt: req.scheduledAt,
+          },
+          createdAt: req.createdAt,
+          scheduledTime: req.scheduledAt,
+        }));
+
+        combinedResults.push(...transformedRequests);
+      }
 
       const allMeetings = await prisma.meeting.findMany({
-        where: {
-          userId: Number(userId),
-        },
+        where: meetingWhereBase,
         include: {
           consultationRequest: {
             select: {
@@ -204,29 +256,23 @@ export const getMyMeetings = async (req: Request, res: Response) => {
               specialization: true,
               profileImage: true,
             }
+          },
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
           }
         }
       });
 
-      const transformedRequests = allRequests.map(req => ({
-        id: `request-${req.id}`,
-        requestId: req.id,
-        type: 'request',
-        status: 'PENDING_REQUEST',
-        counselor: req.counselor,
-        consultationRequest: {
-          requestType: req.requestType,
-          message: req.message,
-          scheduledAt: req.scheduledAt,
-        },
-        createdAt: req.createdAt,
-        scheduledTime: req.scheduledAt,
-      }));
+      combinedResults.push(...allMeetings.map(m => ({ ...m, type: 'meeting' })));
 
-      combinedResults = [
-        ...transformedRequests,
-        ...allMeetings.map(m => ({ ...m, type: 'meeting' }))
-      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      combinedResults.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     }
 
     console.log("Results found: ", combinedResults.length);
@@ -244,9 +290,6 @@ export const getMyMeetings = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Get single meeting by ID
- */
 export const getMeetingById = async (req: Request, res: Response) => {
   try {
     const { meetingId } = req.params;
@@ -298,9 +341,6 @@ export const getMeetingById = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Join meeting - validates time and returns join permission
- */
 export const joinMeeting = async (req: Request, res: Response) => {
   try {
     const { meetingId } = req.params;
@@ -420,9 +460,7 @@ export const joinMeeting = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Set counselor availability (ONLINE/OFFLINE)
- */
+
 export const setAvailability = async (req: Request, res: Response) => {
   try {
     const counselorId = req.user!.id;
@@ -448,9 +486,6 @@ export const setAvailability = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Get counselor revenue and stats
- */
 export const getCounselorRevenue = async (req: Request, res: Response) => {
   try {
     const counselorId = req.user!.id;
@@ -513,9 +548,7 @@ export const getCounselorRevenue = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Update counselor profile
- */
+
 export const updateCounselorProfile = async (req: Request, res: Response) => {
   try {
     const counselorId = req.user!.id;
@@ -551,9 +584,6 @@ export const updateCounselorProfile = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Get counselor profile
- */
 export const getCounselorProfile = async (req: Request, res: Response) => {
   try {
     console.log("yes it is hiitng profile on progile 1")

@@ -1,22 +1,40 @@
 import jwt, { SignOptions } from "jsonwebtoken"
 
 interface Payload {
-  userId?: number | string; // Support both User (number) and Counselor (string UUID)
-  tutorId?: number; // For tutor authentication
+  userId?: number | string;
+  tutorId?: number;
   email: string;
-  username: string;
+  username?: string;
   role?: string
 }
 
 export function generateToken(
   payload: Payload,
-  expiresIn: SignOptions["expiresIn"] = "1h"
+  isRefreshToken: boolean = false
 ): string {
-  const secret = process.env.JWT_SECRET_KEY
+  
+  const secret = isRefreshToken ? process.env.JWT_REFRESH_SECRET_KEY : process.env.JWT_SECRET_KEY
+  const expiration = isRefreshToken ? process.env.JWT_REFRESH_TOKEN_EXPIRATION : process.env.JWT_ACCESS_TOKEN_EXPIRATION
 
   if (!secret) {
-    throw new Error("JWT_SECRET_KEY environment variable is not set")
+    throw new Error(
+      isRefreshToken
+        ? "JWT_REFRESH_SECRET_KEY environment variable is not set"
+        : "JWT_SECRET_KEY environment variable is not set"
+    )
   }
 
-  return jwt.sign(payload, secret, { expiresIn })
+  if (!expiration) {
+    throw new Error(
+      isRefreshToken
+        ? "JWT_REFRESH_TOKEN_EXPIRATION environment variable is not set"
+        : "JWT_ACCESS_TOKEN_EXPIRATION environment variable is not set"
+    )
+  }
+
+  const options: SignOptions = {
+    expiresIn: expiration as SignOptions["expiresIn"],
+  }
+
+  return jwt.sign(payload, secret, options)
 }

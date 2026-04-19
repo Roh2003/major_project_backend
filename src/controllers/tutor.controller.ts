@@ -233,8 +233,7 @@ export const tutorLogin = async (req: Request, res: Response): Promise<void> => 
         email: tutor.email,
         username: tutor.username,
         role: 'TUTOR'
-      },
-      '8h'
+      }
     );
 
     console.log("[Tutor Login] Login successful");

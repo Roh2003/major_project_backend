@@ -57,7 +57,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  if (password) { 
+  if (password) {
     console.log("Validating password...");
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
     if (!passwordRegex.test(password)) {
@@ -205,7 +205,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     console.log("api is hitting in backend 5")
-    
+
     if (!user.isActive) {
       sendResponse(
         res,
@@ -219,7 +219,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     console.log("api is hitting in backend 6")
 
-    // Assume you have a comparePassword util
+    if (!user.password) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'You are registered with google, please login with google',
+        STATUS_CODES.UNAUTHORIZED
+      );
+      return;
+    }
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
       sendResponse(
@@ -236,23 +245,29 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     console.log("user", user.userRoleMappings[0].role.name)
 
     const authToken = generateToken(
-      {userId: user.id, email: user.email, username: user.username, role: user.userRoleMappings[0].role.name},
-      '1h'
+      { userId: user.id, email: user.email, role: user.userRoleMappings[0].role.name },
     );
 
+    const refreshToken = generateToken(
+      { userId: user.id, email: user.email, role: user.userRoleMappings[0].role.name },
+      true)
+
     console.log("authToken", authToken)
+    console.log("refreshToken", refreshToken)
+
+    const credits = (user as typeof user & { credits?: number }).credits ?? 0;
 
     sendResponse(
       res,
       true,
-      { 
+      {
         user: {
           id: user.id,
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
-          username: user.username,
           phoneNo: user.phoneNo,
+          credits,
         },
         authToken
       },
@@ -353,6 +368,17 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    if (!user.password) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'You are registered with google, please login with google',
+        STATUS_CODES.UNAUTHORIZED
+      );
+      return;
+    }
+
     // Verify password
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
@@ -372,13 +398,13 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       {
         userId: user.id,
         email: user.email,
-        username: user.username,
         role: roles[0] // Primary role
       },
-      '8h' // Longer session for admins
     );
 
     console.log("[Admin Login] Login successful");
+
+    const credits = (user as typeof user & { credits?: number }).credits ?? 0;
 
     sendResponse(
       res,
@@ -389,8 +415,8 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
-          username: user.username,
           role: roles[0]
+          ,credits
         },
         authToken
       },
@@ -625,6 +651,191 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       false,
       null,
       'Failed to update profile',
+      STATUS_CODES.SERVER_ERROR
+    );
+  }
+}
+
+export const googleAuth = async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log("hitt google login api 1")
+    const { email, googleId, firstName, lastName, profileImage } = req.body;
+
+    console.log("request body", req.body)
+
+    if (!email || !googleId) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'Email and Google ID are required',
+        STATUS_CODES.BAD_REQUEST
+      );
+      return;
+    }
+    console.log("hitt google login api 2")
+
+
+    let user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        userRoleMappings: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
+
+    console.log("hitt google login api 3")
+
+
+    if (!user) {
+      // Create new user with Google authentication
+      const result = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            firstName,
+            lastName,
+            email,
+            googleId,
+            authProvider: 'GOOGLE',
+          }
+        });
+
+        const userRole = await tx.roles.findFirst({
+          where: {
+            name: "User"
+          }
+        });
+
+        if (!userRole) {
+          throw new Error('USER role not found in database');
+        }
+
+        await tx.userRoleMapping.create({
+          data: {
+            userId: newUser.id,
+            roleId: userRole.id,
+          }
+        });
+
+        return newUser;
+      });
+
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          userRoleMappings: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+    } else {
+      // Update existing user with Google info if needed
+      if (!user.googleId || user.authProvider !== 'GOOGLE') {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            googleId,
+            authProvider: 'GOOGLE',
+            firstName: firstName || user.firstName,
+            lastName: lastName || user.lastName,
+            profileImage: profileImage || user.profileImage,
+            updatedAt: new Date()
+          },
+          include: {
+            userRoleMappings: {
+              include: {
+                role: true
+              }
+            }
+          }
+        });
+      }
+    }
+
+    console.log("hitt google login api 4")
+
+
+    if (!user) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'Failed to find or create user',
+        STATUS_CODES.SERVER_ERROR
+      );
+      return;
+    }
+
+    console.log("hitt google login api 5")
+
+
+    if (user.isDeleted) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'Your account has been deleted',
+        STATUS_CODES.UNAUTHORIZED
+      );
+      return;
+    }
+
+    console.log("hitt google login api 6")
+
+
+    if (!user.isActive) {
+      sendResponse(
+        res,
+        false,
+        null,
+        'Your account is not active',
+        STATUS_CODES.UNAUTHORIZED
+      );
+      return;
+    }
+
+    console.log("hitt google login api 7")
+
+
+    const authToken = generateToken(
+      { userId: user.id, email: user.email, role: user.userRoleMappings[0].role.name },
+    );
+
+    console.log("hitt google login api 8")
+
+
+    const credits = (user as typeof user & { credits?: number }).credits ?? 0;
+
+    sendResponse(
+      res,
+      true,
+      {
+        user: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.userRoleMappings[0].role.name,
+          profileImage: user.profileImage,
+          credits,
+        },
+        authToken
+      },
+      'Google authentication successful',
+      STATUS_CODES.OK
+    );
+  } catch (error) {
+    console.error('[Google Auth] Error:', error);
+    sendResponse(
+      res,
+      false,
+      null,
+      'Google authentication failed',
       STATUS_CODES.SERVER_ERROR
     );
   }

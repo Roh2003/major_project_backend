@@ -11,6 +11,7 @@ router.post('/login', loginValidator, AuthController.login);
 router.post('/admin/login', loginValidator, AuthController.adminLogin);
 router.post('/update-profile', authAdminOrUser, AuthController.updateProfile);
 router.get("/profile", authAdminOrUser, AuthController.getProfile);
+router.post('/google', AuthController.googleAuth);
 
 export default router;
 

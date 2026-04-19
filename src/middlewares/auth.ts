@@ -49,7 +49,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         req.user = {
             id: user.id,
             email: user.email,
-            username: user.username,
+            // username: user.username,
             role: user.userRoleMappings[0]?.role.name || 'User'
         };
 
@@ -109,7 +109,7 @@ export const authAdmin = async (req: Request, res: Response, next: NextFunction)
             req.user = {
                 id: user.id,
                 email: user.email,
-                username: user.username,
+                // username: user.username,
                 role: roleName
             };
             next();
@@ -170,7 +170,7 @@ export const authUser = async (req: Request, res: Response, next: NextFunction):
             req.user = {
                 id: user.id,
                 email: user.email,
-                username: user.username,
+                // username: user.username,
                 role: roleName
             };
             next();
@@ -231,7 +231,7 @@ export const authAdminOrUser = async (req: Request, res: Response, next: NextFun
             req.user = {
                 id: user.id,
                 email: user.email,
-                username: user.username,
+                // username: user.username,
                 role: roleName
             };
             next();
@@ -286,7 +286,7 @@ export const authCounselor = async (req: Request, res: Response, next: NextFunct
         req.user = {
             id: Number(counselor.id),
             email: counselor.email,
-            username: counselor.name,
+            // username: counselor.name,
             role: 'Counselor'
         };
 
@@ -349,7 +349,6 @@ export const authUserOrCounselor = async (req: Request, res: Response, next: Nex
                 req.user = {
                     id: user.id,
                     email: user.email,
-                    username: user.username,
                     role: roleName
                 };
                 next();
@@ -366,7 +365,6 @@ export const authUserOrCounselor = async (req: Request, res: Response, next: Nex
             req.user = {
                 id: Number(counselor.id),
                 email: counselor.email,
-                username: counselor.name,
                 role: 'Counselor'
             };
             next();
@@ -440,7 +438,7 @@ export const authTutor = async (req: Request, res: Response, next: NextFunction)
             tutorId: tutor.id,
             id: tutor.id,
             email: tutor.email,
-            username: tutor.username,
+            // username: tutor.username,
             role: 'TUTOR'
         };
 

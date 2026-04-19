@@ -25,8 +25,12 @@ model User {
   profileImage      String?
   currentStudyLevel currentStudylevel? @map("current_studylevel")
   email             String             @unique
-  username          String             @unique
-  password          String
+  username          String?             @unique
+  password          String?
+
+  googleId          String?            @unique @map("google_id")
+  authProvider      AuthProvider       @default(LOCAL)
+  credits           Int                @default(0)
   isActive          Boolean            @default(true)
   isDeleted         Boolean            @default(false) @map("isdeleted")
   deletedAt         DateTime?          @map("deleted_at")
@@ -36,12 +40,31 @@ model User {
   userRoleMappings     UserRoleMapping[]
   ContestAttempt       ContestAttempt[]
   ChallengeAttempt     ChallengeAttempt[]
+  contestCreditPayouts ContestCreditPayout[]
   consultationRequests ConsultationRequest[]
-  meetings             Meeting[]
+  meetings             Meeting[]                                                                                       
   enrolledCourses      CourseUserMapper[]
+  sessions             Session[]
 
   @@map("users")
 }
+
+model Session {
+  id           String   @id @default(uuid())
+  refreshToken String
+  device       String?
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+
 
 model Tutor {
   id           Int       @id @default(autoincrement())
@@ -199,11 +222,17 @@ model Contest {
   isPublished      Boolean           @default(false)
   durationMinutes  Int?
   totalMarks       Int?
+  firstRankCredits Int               @default(0)
+  secondRankCredits Int              @default(0)
+  thirdRankCredits Int               @default(0)
+  creditsDistributed Boolean         @default(false)
+  creditsDistributedAt DateTime?
   isActive         Boolean           @default(true)
   createdByAdminId Int?
   createdAt        DateTime          @default(now())
   ContestQuestion  ContestQuestion[]
   ContestAttempt   ContestAttempt[]
+  creditPayouts    ContestCreditPayout[]
 
   @@map("contest")
 }
@@ -238,10 +267,30 @@ model ContestAttempt {
 
   contest Contest @relation(fields: [contestId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
+  creditPayout ContestCreditPayout?
 
   @@index([contestId])
   @@index([userId])
   @@map("contest_attempts")
+}
+
+model ContestCreditPayout {
+  id            Int      @id @default(autoincrement())
+  contestId     Int
+  userId        Int
+  attemptId     Int      @unique
+  rank          Int
+  creditsAwarded Int
+  createdAt     DateTime @default(now())
+
+  contest Contest        @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempt ContestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([contestId, rank])
+  @@index([contestId])
+  @@index([userId])
+  @@map("contest_credit_payouts")
 }
 
 model ContestAnswer {
