@@ -49,6 +49,18 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
         sendResponse(res, false, null, "Title and description are required", 400)
         return
       }
+
+      const userRole = String(req.user?.role ?? "").toLowerCase()
+      const isTutor = userRole === "tutor"
+      const isAdmin = userRole === "admin" || userRole === "superadmin"
+
+      if (!isTutor && !isAdmin) {
+        sendResponse(res, false, null, "Unauthorized role for course creation", 403)
+        return
+      }
+
+      const tutorId = isTutor ? (req.user?.tutorId ?? req.user?.id ?? null) : null
+      const createdBy = isAdmin ? (req.user?.id ?? null) : null
   
       const course = await prisma.courses.create({
         data: {
@@ -61,10 +73,12 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
           isPublished: false,
           instructor,
           duration,
-          tutorId: req.user?.id,
-          createdBy: req.user?.id
+          tutorId,
+          createdBy
         }
       })
+
+      console.log("Course created with ID:", course)
   
       sendResponse(res, true, course, "Course created successfully", 201)
     } catch (error) {
